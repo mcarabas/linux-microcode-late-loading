@@ -34,14 +34,14 @@
 
 #include "cpu.h"
 
-static void __init spectre_v1_select_mitigation(void);
-static void __init spectre_v2_select_mitigation(void);
-static void __init ssb_select_mitigation(void);
-static void __init l1tf_select_mitigation(void);
-static void __init mds_select_mitigation(void);
-static void __init mds_print_mitigation(void);
-static void __init taa_select_mitigation(void);
-static void __init srbds_select_mitigation(void);
+static void spectre_v1_select_mitigation(void);
+static void spectre_v2_select_mitigation(void);
+static void ssb_select_mitigation(void);
+static void l1tf_select_mitigation(void);
+static void mds_select_mitigation(void);
+static void mds_print_mitigation(void);
+static void taa_select_mitigation(void);
+static void srbds_select_mitigation(void);
 
 /* The base value of the SPEC_CTRL MSR that always has to be preserved. */
 u64 x86_spec_ctrl_base;
@@ -52,14 +52,14 @@ static DEFINE_MUTEX(spec_ctrl_mutex);
  * The vendor and possibly platform specific bits which can be modified in
  * x86_spec_ctrl_base.
  */
-static u64 __ro_after_init x86_spec_ctrl_mask = SPEC_CTRL_IBRS;
+static u64 x86_spec_ctrl_mask = SPEC_CTRL_IBRS;
 
 /*
  * AMD specific MSR info for Speculative Store Bypass control.
  * x86_amd_ls_cfg_ssbd_mask is initialized in identify_boot_cpu().
  */
-u64 __ro_after_init x86_amd_ls_cfg_base;
-u64 __ro_after_init x86_amd_ls_cfg_ssbd_mask;
+u64 x86_amd_ls_cfg_base;
+u64 x86_amd_ls_cfg_ssbd_mask;
 
 /* Control conditional STIBP in switch_to() */
 DEFINE_STATIC_KEY_FALSE(switch_to_cond_stibp);
@@ -75,7 +75,7 @@ EXPORT_SYMBOL_GPL(mds_user_clear);
 DEFINE_STATIC_KEY_FALSE(mds_idle_clear);
 EXPORT_SYMBOL_GPL(mds_idle_clear);
 
-void __init check_bugs(void)
+void __ref check_bugs(void)
 {
 	identify_boot_cpu();
 
@@ -228,7 +228,7 @@ static void x86_amd_ssb_disable(void)
 #define pr_fmt(fmt)	"MDS: " fmt
 
 /* Default mitigation for MDS-affected CPUs */
-static enum mds_mitigations mds_mitigation __ro_after_init = MDS_MITIGATION_FULL;
+static enum mds_mitigations mds_mitigation = MDS_MITIGATION_FULL;
 static bool mds_nosmt __ro_after_init = false;
 
 static const char * const mds_strings[] = {
@@ -237,7 +237,7 @@ static const char * const mds_strings[] = {
 	[MDS_MITIGATION_VMWERV]	= "Vulnerable: Clear CPU buffers attempted, no microcode",
 };
 
-static void __init mds_select_mitigation(void)
+static void mds_select_mitigation(void)
 {
 	if (!boot_cpu_has_bug(X86_BUG_MDS) || cpu_mitigations_off()) {
 		mds_mitigation = MDS_MITIGATION_OFF;
@@ -256,7 +256,7 @@ static void __init mds_select_mitigation(void)
 	}
 }
 
-static void __init mds_print_mitigation(void)
+static void mds_print_mitigation(void)
 {
 	if (!boot_cpu_has_bug(X86_BUG_MDS) || cpu_mitigations_off())
 		return;
@@ -296,7 +296,7 @@ enum taa_mitigations {
 };
 
 /* Default mitigation for TAA-affected CPUs */
-static enum taa_mitigations taa_mitigation __ro_after_init = TAA_MITIGATION_VERW;
+static enum taa_mitigations taa_mitigation = TAA_MITIGATION_VERW;
 static bool taa_nosmt __ro_after_init;
 
 static const char * const taa_strings[] = {
@@ -306,7 +306,7 @@ static const char * const taa_strings[] = {
 	[TAA_MITIGATION_TSX_DISABLED]	= "Mitigation: TSX disabled",
 };
 
-static void __init taa_select_mitigation(void)
+static void taa_select_mitigation(void)
 {
 	u64 ia32_cap;
 
@@ -410,7 +410,7 @@ enum srbds_mitigations {
 	SRBDS_MITIGATION_HYPERVISOR,
 };
 
-static enum srbds_mitigations srbds_mitigation __ro_after_init = SRBDS_MITIGATION_FULL;
+static enum srbds_mitigations srbds_mitigation = SRBDS_MITIGATION_FULL;
 
 static const char * const srbds_strings[] = {
 	[SRBDS_MITIGATION_OFF]		= "Vulnerable",
@@ -452,7 +452,7 @@ void update_srbds_msr(void)
 	wrmsrl(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
 }
 
-static void __init srbds_select_mitigation(void)
+static void srbds_select_mitigation(void)
 {
 	u64 ia32_cap;
 
@@ -498,7 +498,7 @@ enum spectre_v1_mitigation {
 	SPECTRE_V1_MITIGATION_AUTO,
 };
 
-static enum spectre_v1_mitigation spectre_v1_mitigation __ro_after_init =
+static enum spectre_v1_mitigation spectre_v1_mitigation =
 	SPECTRE_V1_MITIGATION_AUTO;
 
 static const char * const spectre_v1_strings[] = {
@@ -527,7 +527,7 @@ static bool smap_works_speculatively(void)
 	return true;
 }
 
-static void __init spectre_v1_select_mitigation(void)
+static void spectre_v1_select_mitigation(void)
 {
 	if (!boot_cpu_has_bug(X86_BUG_SPECTRE_V1) || cpu_mitigations_off()) {
 		spectre_v1_mitigation = SPECTRE_V1_MITIGATION_NONE;
@@ -585,12 +585,12 @@ early_param("nospectre_v1", nospectre_v1_cmdline);
 #undef pr_fmt
 #define pr_fmt(fmt)     "Spectre V2 : " fmt
 
-static enum spectre_v2_mitigation spectre_v2_enabled __ro_after_init =
+static enum spectre_v2_mitigation spectre_v2_enabled =
 	SPECTRE_V2_NONE;
 
-static enum spectre_v2_user_mitigation spectre_v2_user_stibp __ro_after_init =
+static enum spectre_v2_user_mitigation spectre_v2_user_stibp =
 	SPECTRE_V2_USER_NONE;
-static enum spectre_v2_user_mitigation spectre_v2_user_ibpb __ro_after_init =
+static enum spectre_v2_user_mitigation spectre_v2_user_ibpb =
 	SPECTRE_V2_USER_NONE;
 
 #ifdef CONFIG_RETPOLINE
@@ -653,7 +653,7 @@ static const struct {
 	const char			*option;
 	enum spectre_v2_user_cmd	cmd;
 	bool				secure;
-} v2_user_options[] __initconst = {
+} v2_user_options[] = {
 	{ "auto",		SPECTRE_V2_USER_CMD_AUTO,		false },
 	{ "off",		SPECTRE_V2_USER_CMD_NONE,		false },
 	{ "on",			SPECTRE_V2_USER_CMD_FORCE,		true  },
@@ -663,13 +663,13 @@ static const struct {
 	{ "seccomp,ibpb",	SPECTRE_V2_USER_CMD_SECCOMP_IBPB,	false },
 };
 
-static void __init spec_v2_user_print_cond(const char *reason, bool secure)
+static void spec_v2_user_print_cond(const char *reason, bool secure)
 {
 	if (boot_cpu_has_bug(X86_BUG_SPECTRE_V2) != secure)
 		pr_info("spectre_v2_user=%s forced on command line.\n", reason);
 }
 
-static enum spectre_v2_user_cmd __init
+static enum spectre_v2_user_cmd
 spectre_v2_parse_user_cmdline(enum spectre_v2_mitigation_cmd v2_cmd)
 {
 	char arg[20];
@@ -701,7 +701,7 @@ spectre_v2_parse_user_cmdline(enum spectre_v2_mitigation_cmd v2_cmd)
 	return SPECTRE_V2_USER_CMD_AUTO;
 }
 
-static void __init
+static void
 spectre_v2_user_select_mitigation(enum spectre_v2_mitigation_cmd v2_cmd)
 {
 	enum spectre_v2_user_mitigation mode = SPECTRE_V2_USER_NONE;
@@ -801,7 +801,7 @@ static const struct {
 	const char *option;
 	enum spectre_v2_mitigation_cmd cmd;
 	bool secure;
-} mitigation_options[] __initconst = {
+} mitigation_options[] = {
 	{ "off",		SPECTRE_V2_CMD_NONE,		  false },
 	{ "on",			SPECTRE_V2_CMD_FORCE,		  true  },
 	{ "retpoline",		SPECTRE_V2_CMD_RETPOLINE,	  false },
@@ -810,13 +810,13 @@ static const struct {
 	{ "auto",		SPECTRE_V2_CMD_AUTO,		  false },
 };
 
-static void __init spec_v2_print_cond(const char *reason, bool secure)
+static void spec_v2_print_cond(const char *reason, bool secure)
 {
 	if (boot_cpu_has_bug(X86_BUG_SPECTRE_V2) != secure)
 		pr_info("%s selected on command line.\n", reason);
 }
 
-static enum spectre_v2_mitigation_cmd __init spectre_v2_parse_cmdline(void)
+static enum spectre_v2_mitigation_cmd spectre_v2_parse_cmdline(void)
 {
 	enum spectre_v2_mitigation_cmd cmd = SPECTRE_V2_CMD_AUTO;
 	char arg[20];
@@ -862,7 +862,7 @@ static enum spectre_v2_mitigation_cmd __init spectre_v2_parse_cmdline(void)
 	return cmd;
 }
 
-static void __init spectre_v2_select_mitigation(void)
+static void spectre_v2_select_mitigation(void)
 {
 	enum spectre_v2_mitigation_cmd cmd = spectre_v2_parse_cmdline();
 	enum spectre_v2_mitigation mode = SPECTRE_V2_NONE;
@@ -1061,7 +1061,7 @@ void cpu_bugs_smt_update(void)
 #undef pr_fmt
 #define pr_fmt(fmt)	"Speculative Store Bypass: " fmt
 
-static enum ssb_mitigation ssb_mode __ro_after_init = SPEC_STORE_BYPASS_NONE;
+static enum ssb_mitigation ssb_mode = SPEC_STORE_BYPASS_NONE;
 
 /* The kernel command line selection */
 enum ssb_mitigation_cmd {
@@ -1082,7 +1082,7 @@ static const char * const ssb_strings[] = {
 static const struct {
 	const char *option;
 	enum ssb_mitigation_cmd cmd;
-} ssb_mitigation_options[]  __initconst = {
+} ssb_mitigation_options[] = {
 	{ "auto",	SPEC_STORE_BYPASS_CMD_AUTO },    /* Platform decides */
 	{ "on",		SPEC_STORE_BYPASS_CMD_ON },      /* Disable Speculative Store Bypass */
 	{ "off",	SPEC_STORE_BYPASS_CMD_NONE },    /* Don't touch Speculative Store Bypass */
@@ -1090,7 +1090,7 @@ static const struct {
 	{ "seccomp",	SPEC_STORE_BYPASS_CMD_SECCOMP }, /* Disable Speculative Store Bypass via prctl and seccomp */
 };
 
-static enum ssb_mitigation_cmd __init ssb_parse_cmdline(void)
+static enum ssb_mitigation_cmd ssb_parse_cmdline(void)
 {
 	enum ssb_mitigation_cmd cmd = SPEC_STORE_BYPASS_CMD_AUTO;
 	char arg[20];
@@ -1122,7 +1122,7 @@ static enum ssb_mitigation_cmd __init ssb_parse_cmdline(void)
 	return cmd;
 }
 
-static enum ssb_mitigation __init __ssb_select_mitigation(void)
+static enum ssb_mitigation __ssb_select_mitigation(void)
 {
 	enum ssb_mitigation mode = SPEC_STORE_BYPASS_NONE;
 	enum ssb_mitigation_cmd cmd;
@@ -1402,7 +1402,7 @@ EXPORT_SYMBOL_GPL(itlb_multihit_kvm_mitigation);
 #define pr_fmt(fmt)	"L1TF: " fmt
 
 /* Default mitigation for L1TF-affected CPUs */
-enum l1tf_mitigations l1tf_mitigation __ro_after_init = L1TF_MITIGATION_FLUSH;
+enum l1tf_mitigations l1tf_mitigation = L1TF_MITIGATION_FLUSH;
 #if IS_ENABLED(CONFIG_KVM_INTEL)
 EXPORT_SYMBOL_GPL(l1tf_mitigation);
 #endif
@@ -1448,7 +1448,7 @@ static void override_cache_bits(struct cpuinfo_x86 *c)
 	}
 }
 
-static void __init l1tf_select_mitigation(void)
+static void l1tf_select_mitigation(void)
 {
 	u64 half_pa;
 
