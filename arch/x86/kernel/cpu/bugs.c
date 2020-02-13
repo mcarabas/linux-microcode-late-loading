@@ -77,17 +77,19 @@ EXPORT_SYMBOL_GPL(mds_idle_clear);
 
 void __ref check_bugs(void)
 {
-	identify_boot_cpu();
+	if (system_state != SYSTEM_RUNNING) {
+		identify_boot_cpu();
 
-	/*
-	 * identify_boot_cpu() initialized SMT support information, let the
-	 * core code know.
-	 */
-	cpu_smt_check_topology();
+		/*
+		 * identify_boot_cpu() initialized SMT support information,
+		 * let the core code know.
+		 */
+		cpu_smt_check_topology();
 
-	if (!IS_ENABLED(CONFIG_SMP)) {
-		pr_info("CPU: ");
-		print_cpu_info(&boot_cpu_data);
+		if (!IS_ENABLED(CONFIG_SMP)) {
+			pr_info("CPU: ");
+			print_cpu_info(&boot_cpu_data);
+		}
 	}
 
 	/*
@@ -110,6 +112,13 @@ void __ref check_bugs(void)
 	mds_select_mitigation();
 	taa_select_mitigation();
 	srbds_select_mitigation();
+
+	/*
+	 * If we are late loading the microcode, code below should
+	 * not be executed --- it is only needed during boot.
+	 */
+	if (system_state == SYSTEM_RUNNING)
+		return;
 
 	/*
 	 * As MDS and TAA mitigations are inter-related, print MDS
@@ -452,9 +461,16 @@ void update_srbds_msr(void)
 	wrmsrl(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
 }
 
+static void _update_srbds_msr(void *p)
+{
+	update_srbds_msr();
+}
+
 static void srbds_select_mitigation(void)
 {
 	u64 ia32_cap;
+
+	srbds_mitigation = SRBDS_MITIGATION_FULL;
 
 	if (!boot_cpu_has_bug(X86_BUG_SRBDS))
 		return;
@@ -473,7 +489,8 @@ static void srbds_select_mitigation(void)
 	else if (cpu_mitigations_off() || srbds_off)
 		srbds_mitigation = SRBDS_MITIGATION_OFF;
 
-	update_srbds_msr();
+	on_each_cpu(_update_srbds_msr, NULL, 1);
+
 	pr_info("%s\n", srbds_strings[srbds_mitigation]);
 }
 
