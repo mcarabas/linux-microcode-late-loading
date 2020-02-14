@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/string.h>
 #include <linux/initrd.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -965,6 +966,81 @@ static bool is_blacklisted(unsigned int cpu)
 
 	return false;
 }
+/**
+ * is_microcode_allowed - parse and enforce policies
+ * @firmware - metadata blob
+ *
+ * Parses the metadata file provided with the microcode in order to see the
+ * changes brought in by the new blob.
+ *
+ * Based on the type of changes, currently it enforces the following policy: if
+ * there is a feature being removed by the new microcode, reject the loading.
+ *
+ * RETURNS:
+ * false if it rejects the microcode or true if it accepts the microcode.
+ */
+static bool is_microcode_allowed(const struct firmware *firmware)
+{
+	int ret, index, leaf, eax, ebx, ecx, edx, line_nr = 0;
+	char *data = (char *) firmware->data;
+	char *line;
+	char op;
+
+	/*
+	 * Get each line and match it with regular expression:
+	 * {m|c} {+|-} u32 [u32]*
+	 *
+	 * See section Late loading metadata file from
+	 * Documentation/x86/microcode.rst
+	 */
+	while (data && (data - ((char *)(firmware->data)) < firmware->size)) {
+		line = strsep(&data, "\n");
+		line_nr++;
+
+		/*
+		 * For each line check the first letter to see the type of
+		 * operation done by the microcode and create a sscanf call
+		 * the would match the rest of the line of that operation.
+		 * If it is not a match, exist with parsing error. If it is
+		 * a match and is a remove action (-) do not allow microcode
+		 * to be loaded.
+		 */
+		switch (line[0]) {
+		case 'c':
+			ret = sscanf(&line[1], " %c %x %x %x %x %x %x", &op,
+			    &index, &leaf, &eax, &ebx, &ecx, &edx);
+			if (ret != 7)
+				goto out_error;
+			if (op == '-')
+				goto out_cpuid_rem_notsupp;
+			break;
+		case 'm':
+			ret = sscanf(&line[1], " %c %x", &op, &index);
+			if (ret != 2)
+				goto out_error;
+			if (op == '-')
+				goto out_msr_rem_notsupp;
+			break;
+		default:
+			goto out_error;
+		}
+	}
+
+	return true;
+
+out_error:
+	pr_warn("Microcode metadata failed parsing at line %d\n", line_nr);
+	return false;
+
+out_msr_rem_notsupp:
+	pr_warn("Kernel policy does not allow to remove MSR: %x\n", index);
+	return false;
+
+out_cpuid_rem_notsupp:
+	pr_warn("Kernel policy does not allow to remove CPUID: %x leaf: %x, eax: %x, ebx: %x, ecx: %x, edx: %x\n",
+	    index, leaf, eax, ebx, ecx, edx);
+	return false;
+}
 
 static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 					     bool refresh_fw)
@@ -992,10 +1068,19 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 		return UCODE_NFOUND;
 	}
 
+	/* Load the metadata file in memory. */
 	if (request_firmware_direct(&meta_firmware, meta_name, device)) {
 		pr_debug("metadata file %s load failed\n", name);
 		pr_debug("no feature check will be done pre-loading the microcode\n");
 	} else {
+		/* Check the policy based on the metadata file. */
+		if (!is_microcode_allowed(meta_firmware)) {
+			pr_warn("kernel does not support the new microcode: %s\n",
+			    name);
+			release_firmware(meta_firmware);
+			release_firmware(firmware);
+			return UCODE_ERROR;
+		}
 		release_firmware(meta_firmware);
 	}
 
