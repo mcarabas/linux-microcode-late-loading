@@ -970,10 +970,12 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 					     bool refresh_fw)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	const struct firmware *meta_firmware;
 	const struct firmware *firmware;
 	struct iov_iter iter;
 	enum ucode_state ret;
 	struct kvec kvec;
+	char meta_name[40];
 	char name[30];
 
 	if (is_blacklisted(cpu))
@@ -982,9 +984,19 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		c->x86, c->x86_model, c->x86_stepping);
 
+	sprintf(meta_name, "intel-ucode/%02x-%02x-%02x.metadata",
+		c->x86, c->x86_model, c->x86_stepping);
+
 	if (request_firmware_direct(&firmware, name, device)) {
 		pr_debug("data file %s load failed\n", name);
 		return UCODE_NFOUND;
+	}
+
+	if (request_firmware_direct(&meta_firmware, meta_name, device)) {
+		pr_debug("metadata file %s load failed\n", name);
+		pr_debug("no feature check will be done pre-loading the microcode\n");
+	} else {
+		release_firmware(meta_firmware);
 	}
 
 	kvec.iov_base = (void *)firmware->data;
