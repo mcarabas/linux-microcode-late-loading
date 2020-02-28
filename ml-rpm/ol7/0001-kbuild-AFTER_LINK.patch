@@ -1,0 +1,32 @@
+From 3fb87e92f96091d81d61004b07b8e460ae89a198 Mon Sep 17 00:00:00 2001
+From: Roland McGrath <roland@redhat.com>
+Date: Mon, 6 Oct 2008 23:03:03 -0700
+Subject: [PATCH] kbuild: AFTER_LINK
+
+If the make variable AFTER_LINK is set, it is a command line to run
+after each final link.  This includes vmlinux itself and vDSO images.
+
+Signed-off-by: Roland McGrath <roland@redhat.com>
+Signed-off-by: Guangyu Sun <guangyu.sun@oracle.com>
+---
+ scripts/link-vmlinux.sh             |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/scripts/link-vmlinux.sh b/scripts/link-vmlinux.sh
+index 86a4fe7..161637e 100755
+--- a/scripts/link-vmlinux.sh
++++ b/scripts/link-vmlinux.sh
+@@ -65,6 +65,10 @@ vmlinux_link()
+ 			-lutil ${1}
+ 		rm -f linux
+ 	fi
++	if [ -n "${AFTER_LINK}" ]; then
++		/usr/lib/rpm/debugedit -b ${RPM_BUILD_DIR} -d /usr/src/debug -i ${2} \
++			> ${2}.id
++	fi
+ }
+ 
+ 
+-- 
+1.7.9.5
+

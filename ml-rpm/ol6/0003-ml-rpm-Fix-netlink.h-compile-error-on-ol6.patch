@@ -1,0 +1,28 @@
+From 801b130a4f3ea8156148fd9af8cd297217c6f48c Mon Sep 17 00:00:00 2001
+From: Victor Erminpour <victor.erminpour@oracle.com>
+Date: Wed, 25 Jul 2018 14:00:08 -0700
+Subject: [PATCH ML-rpm] ml-rpm: Fix netlink.h compile error on ol6
+
+Fix a netlink.h compilation error on ol6.  Add a
+typedef for __kernel_sa_family_t.
+
+Orabug: 28403046
+
+Signed-off-by: Victor Erminpour <victor.erminpour@oracle.com>
+---
+ tools/include/uapi/linux/netlink.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/tools/include/uapi/linux/netlink.h b/tools/include/uapi/linux/netlink.h
+index 776bc92..0f0e075 100644
+--- a/tools/include/uapi/linux/netlink.h
++++ b/tools/include/uapi/linux/netlink.h
+@@ -34,6 +34,8 @@
+ 
+ #define MAX_LINKS 32		
+ 
++typedef unsigned short __kernel_sa_family_t;
++
+ struct sockaddr_nl {
+ 	__kernel_sa_family_t	nl_family;	/* AF_NETLINK	*/
+ 	unsigned short	nl_pad;		/* zero		*/

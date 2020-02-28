@@ -1,0 +1,13 @@
+diff --git a/tools/perf/Makefile.perf b/tools/perf/Makefile.perf
+index 982d643..ec3631b 100644
+--- a/tools/perf/Makefile.perf
++++ b/tools/perf/Makefile.perf
+@@ -457,7 +457,7 @@ $(PERF_IN): prepare FORCE
+ 	|| echo "Warning: tools/include/uapi/linux/mman.h differs from kernel" >&2 )) || true
+ 	$(Q)$(MAKE) $(build)=perf
+ 
+-$(JEVENTS_IN): FORCE
++$(JEVENTS_IN): fixdep FORCE
+ 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=pmu-events obj=jevents
+ 
+ $(JEVENTS): $(JEVENTS_IN)
