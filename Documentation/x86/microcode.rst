@@ -110,6 +110,42 @@ The loading mechanism looks for microcode blobs in
 /lib/firmware/{intel-ucode,amd-ucode}. The default distro installation
 packages already put them there.
 
+Late loading metadata file
+==========================
+
+New microcode blobs may remove or modify CPU feature bits. Prior to this
+metadata file, the microcode was blindly loaded and might have created an
+unrecoverable error (e.g. remove an instruction used currently in the kernel).
+
+In order to improve visibility on what features a new microcode that is being
+loaded at runtime (late loading) brings in, a new metadata file is created
+together with the microcode blob. The metadata file has the same name as the
+microcode blob with a suffix of ".metadata". The metadata file respects the
+following regular expression: "{m|c} {+|-} u32 [u32]*", where "m" means MSR
+feature and "c" means a CPUID exposed feature.
+
+Here is an example of content for the metadata file::
+   m + 0x00000122
+   m - 0x00000120
+   c + 0x00000007 0x00 0x00000000 0x021cbfbb 0x00000000 0x00000000
+   c - 0x00000007 0x00 0x00000000 0x021cbfbb 0x00000000 0x00000000
+
+The definition of the file format is as follows::
+   - each line contains an action on a CPU feature that the microcode will do
+   - the first letter specify the type of the feature
+   - the second letter specify the operation:
+   -- + - adds the feature
+   -- - - removes the feature
+   - the third letter specifies the index of the CPUID or the MSR
+   - for the CPUID case all the others parameters specifies the
+     leaf, eax, ebx, ecx and edx values
+
+Using this metadata file, the kernel, based on its internal policies, may
+deny a microcode update in order to ensure system stability (e.g. if an
+instruction is removed by the microcode and that instruction is still being
+used by the current code, we would drop the update as it would brake the
+system).
+
 Builtin microcode
 =================
 
